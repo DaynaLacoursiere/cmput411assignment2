@@ -124,12 +124,10 @@ struct skeleton
   int writeJoint(ofstream & str, JOINT* joint, int tabs);
   void writeMotion(ofstream & str);
 
-
-
-
   void moveJoint (JOINT * joint, MOTION * motionData, unsigned int frame_starts_index);
   void moveTo(unsigned int frame);
 
+  void setVertices(JOINT * joint, GLshort parenIndex = 0);
 
 };
 

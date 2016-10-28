@@ -334,3 +334,22 @@ void skeleton::moveTo(unsigned int frame)
 
   moveJoint(rootJoint, &motionData, start_index);
 }
+
+void skeleton::setVertices(JOINT * joint, GLshort parentIndex)
+{
+  glm::vec4 translatedVertex = joint->matrix[3];
+
+  vertices.push_back(translatedVertex);
+
+  GLshort myIndex = vertices.size() - 1;
+  if (parentIndex != myIndex)
+  {
+    indices.push_back(parentIndex);
+    indices.push_back(myIndex);
+  }
+
+  for(auto & child : joint->children)
+  {
+    setVertices(child, myIndex);
+  }
+}

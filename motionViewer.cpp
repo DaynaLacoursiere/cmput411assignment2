@@ -49,6 +49,8 @@ int main(int argc, char** argv)
 void setup(char* fileName)
 {
   skele.readBvhFile(fileName);
+  skele.moveTo(0);
+  skele.setVertices(skele.rootJoint);
   // skele.normalize();
   // skele.glCreateDisplayList();
   cam.initialize(persp, -1.0, 1.0, -1.0, 1.0, 1.0, 100.0);
