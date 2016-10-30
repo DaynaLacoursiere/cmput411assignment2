@@ -41,7 +41,6 @@ void skeleton::readBvhFile(char* fileName)
 // recursive function to load joints
 JOINT* skeleton::loadJoint(istream & str, JOINT* parent, int type)
 {
-  cout << "Loading joint ";
   JOINT* joint = new JOINT;
   joint->parent = parent;
   
@@ -49,7 +48,6 @@ JOINT* skeleton::loadJoint(istream & str, JOINT* parent, int type)
   str >> *name; // Name is 'Hips' at first call
   joint->name = name->c_str();
 
-  cout << *name << endl;
 
   joint->matrix = glm::mat4(1.0); // identity matrix
 
@@ -108,6 +106,7 @@ JOINT* skeleton::loadJoint(istream & str, JOINT* parent, int type)
     {
       // read in offset values
       str >> joint->offset[0] >> joint->offset[1] >> joint->offset[2];
+      joint->offset[3] = 0.0;
     }
     else if (token == "JOINT")
     {
@@ -143,7 +142,6 @@ JOINT* skeleton::loadJoint(istream & str, JOINT* parent, int type)
     }
     else if (token == "}")
     {
-      cout << "Finished loading " << joint->name << endl;
       return joint; // Recursion!
     }
   }
@@ -154,7 +152,6 @@ JOINT* skeleton::loadJoint(istream & str, JOINT* parent, int type)
 // load motion data
 void skeleton::loadMotion(istream & str)
 {
-  cout << "Loading motion" << endl;
   string token;
 
   while(str.good())
@@ -177,7 +174,6 @@ void skeleton::loadMotion(istream & str)
       // for each frame (line) in file read and store floats
       for(int frame = 0; frame < num_frames; ++frame)
       {
-        cout << "Reading frame\n";
         for(int channel = 0; channel < num_channels; ++channel) 
         {
           float x;
@@ -214,7 +210,6 @@ void skeleton::writeBvhFile(char* fileName)
 }
 
 int skeleton::writeJoint(ofstream & str, JOINT* joint, int tabs){
-  cout << "Writing Joint: " << joint->name << endl;
   // write name
   if (joint->joint_type != 2) str << joint->name << endl;
   else str << "End Site\n";
@@ -253,7 +248,6 @@ int skeleton::writeJoint(ofstream & str, JOINT* joint, int tabs){
 }
 
 void skeleton::writeMotion(ofstream & str){
-  cout << "Writing Motion\n";
   str << "MOTION\n";
   str << "Frames: " << motionData.num_frames << endl;
   str << "Frame Time: " << motionData.frame_time << endl;
@@ -284,7 +278,7 @@ void skeleton::moveJoint (JOINT * joint, MOTION * motionData, unsigned int frame
 {
   // index of motion data's array for this joint
   int start_ind = frame_starts_index + joint->channel_start;
-
+  
   joint->matrix = glm::translate(glm::mat4(1.0),glm::vec3(joint->offset[0],joint->offset[1],joint->offset[2]));
 
   for (int i = 0; i < joint->num_channels; ++i)
@@ -293,28 +287,33 @@ void skeleton::moveJoint (JOINT * joint, MOTION * motionData, unsigned int frame
 
     float value = motionData->data[start_ind + i];
 
-    if (channel & XPOS)
+    // convert value to radians
+
+    if (channel == XPOS)
     {
       joint->matrix = glm::translate(joint->matrix, glm::vec3(value,0,0));
     }
-    if (channel & YPOS)
+    if (channel == YPOS)
     {
       joint->matrix = glm::translate(joint->matrix, glm::vec3(0,value,0));
     }
-    if (channel & ZPOS)
+    if (channel == ZPOS)
     {
       joint->matrix = glm::translate(joint->matrix, glm::vec3(0,0,value));
     }
-    if (channel & XROT)
+    if (channel == XROT)
     {
+      value *= DEG2RAD_SKEL;
       joint->matrix = glm::rotate(joint->matrix, value, glm::vec3(1,0,0));
     }
-    if (channel & YROT)
+    if (channel == YROT)
     {
+      value *= DEG2RAD_SKEL;
       joint->matrix = glm::rotate(joint->matrix, value, glm::vec3(0,1,0));
     }
-    if (channel & ZROT)
+    if (channel == ZROT)
     {
+      value *= DEG2RAD_SKEL;
       joint->matrix = glm::rotate(joint->matrix, value, glm::vec3(0,0,1));
     }
   }
@@ -322,6 +321,7 @@ void skeleton::moveJoint (JOINT * joint, MOTION * motionData, unsigned int frame
   if (joint->parent != NULL){
     joint->matrix = joint->parent->matrix * joint->matrix;
   }
+
 
   for (auto & child: joint->children){
     moveJoint(child, motionData, frame_starts_index);
@@ -335,21 +335,41 @@ void skeleton::moveTo(unsigned int frame)
   moveJoint(rootJoint, &motionData, start_index);
 }
 
-void skeleton::setVertices(JOINT * joint, GLshort parentIndex)
+void skeleton::setVertices(JOINT * joint)
 {
-  glm::vec4 translatedVertex = joint->matrix[3];
 
-  vertices.push_back(translatedVertex);
 
-  GLshort myIndex = vertices.size() - 1;
-  if (parentIndex != myIndex)
+  if (joint->joint_type == 0)// root
   {
-    indices.push_back(parentIndex);
-    indices.push_back(myIndex);
+    joint->myVertex = joint->offset;
+  } 
+  else // node or leaf
+  {
+    joint->myVertex = joint->offset + joint->parent->myVertex;
+    joint->parVertex = joint->parent->myVertex;
+  }
+
+  for(auto & child : joint->children) // won't be called on leaf
+  {
+    setVertices(child);
+  }
+}
+
+void skeleton::drawBone(JOINT * joint)
+{
+  if (joint->joint_type != 0) // don't draw root
+  {
+    joint->myVertex = joint->matrix * glm::vec4(0,1,0,1);
+    joint->parVertex = joint->parent->matrix * glm::vec4(0,1,0,1);
+
+    glBegin(GL_LINES);
+      glVertex3f(joint->parVertex.x, joint->parVertex.y, joint->parVertex.z);
+      glVertex3f(joint->myVertex.x, joint->myVertex.y, joint->myVertex.z);
+    glEnd();
   }
 
   for(auto & child : joint->children)
   {
-    setVertices(child, myIndex);
+    drawBone(child);
   }
 }

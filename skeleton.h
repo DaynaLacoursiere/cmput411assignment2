@@ -40,8 +40,10 @@ struct JOINT
   unsigned int num_channels = 0;
   int * channels_order = NULL;
   std::vector<JOINT*> children;
-  Vector3f offset;
+  glm::vec4 offset;
   glm::mat4 matrix;
+  glm::vec4 parVertex; // parent joint
+  glm::vec4 myVertex; // my joint
   unsigned int channel_start = 0;
 };
 
@@ -70,50 +72,12 @@ struct skeleton
   vector<GLshort> indices;
   // member functions
 
-
-  void reset()
+  float color[4];
+  
+  void glColor()
   {
-    restartAnim();
-    pauseAnim();
-    resetSpeed();
+    glColor4fv(color);
   }
-
-  // plays animation
-  void playAnim()
-  {
-
-  }
-
-  // pauses animation
-  void pauseAnim()
-  {
-
-  }
-
-  // restarts animation (and coninues playing)
-  void restartAnim()
-  {
-
-  }
-
-  // increase speed of animation
-  void increaseSpeed(float inc)
-  {
-    // speed += inc
-  }
-
-  // decrease speed of animation
-  void decreaseSpeed(float dec)
-  {
-    // speed -= dec
-  }
-
-  // reset speed of animation
-  void resetSpeed()
-  {
-
-  }
-
 
 
   // other member functions defined in skeleton.cpp
@@ -127,7 +91,8 @@ struct skeleton
   void moveJoint (JOINT * joint, MOTION * motionData, unsigned int frame_starts_index);
   void moveTo(unsigned int frame);
 
-  void setVertices(JOINT * joint, GLshort parenIndex = 0);
+  void setVertices(JOINT * joint);
+  void drawBone(JOINT * joint);
 
 };
 
